@@ -1,0 +1,12 @@
+go 1.24.5
+
+use (
+	.
+	./camera
+	./engine
+	./input
+	./math
+	./renderer
+	./scene
+	./ui
+)
