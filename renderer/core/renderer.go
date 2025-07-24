@@ -13,9 +13,16 @@ type Renderer struct {
 	window  *window.Window
 	context *opengl.Context
 	shader  *opengl.Shader
+	lineShader *opengl.Shader
 	triangle *opengl.Mesh
 	cube     *opengl.Mesh
+	sphere   *opengl.Mesh
+	cylinder *opengl.Mesh
+	plane    *opengl.Mesh
+	triangleMesh *opengl.Mesh
+	pyramid  *opengl.Mesh
 	camera  *camera.Camera3D
+	gridMesh *opengl.Mesh
 }
 
 func New(width, height int, title string) (*Renderer, error) {
@@ -35,6 +42,13 @@ func New(width, height int, title string) (*Renderer, error) {
 		win.Destroy()
 		return nil, fmt.Errorf("failed to create shader: %w", err)
 	}
+	
+	// Create line shader for grid
+	lineShader, err := opengl.NewShader(opengl.DefaultVertexShader, opengl.DefaultFragmentShader)
+	if err != nil {
+		win.Destroy()
+		return nil, fmt.Errorf("failed to create line shader: %w", err)
+	}
 
 	// Triangle vertices: x, y, z, r, g, b
 	// Simple setup: triangle at origin
@@ -46,8 +60,13 @@ func New(width, height int, title string) (*Renderer, error) {
 	}
 	triangle := opengl.NewMesh(triangleVertices)
 	
-	// Create cube
+	// Create all mesh types
 	cube := opengl.NewCubeMesh()
+	sphere := opengl.NewSphereMesh()
+	cylinder := opengl.NewCylinderMesh()
+	plane := opengl.NewPlaneMesh()
+	triangleMesh := opengl.NewTriangleMesh()
+	pyramid := opengl.NewPyramidMesh()
 
 	// Create camera back at z=3 looking at origin (standard setup)
 	cameraPos := bmath.NewVector3(0, 0, 3)
@@ -65,8 +84,14 @@ func New(width, height int, title string) (*Renderer, error) {
 		window:  win,
 		context: ctx,
 		shader:  shader,
+		lineShader: lineShader,
 		triangle: triangle,
 		cube:     cube,
+		sphere:   sphere,
+		cylinder: cylinder,
+		plane:    plane,
+		triangleMesh: triangleMesh,
+		pyramid:  pyramid,
 		camera:  cam,
 	}, nil
 }
@@ -173,6 +198,71 @@ func (r *Renderer) DrawTriangleWithTransform(model bmath.Matrix4) {
 	r.triangle.Draw()
 }
 
+func (r *Renderer) DrawSphereWithTransform(model bmath.Matrix4) {
+	r.shader.Use()
+	
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.shader.SetMatrix4("model", &model[0])
+	r.shader.SetMatrix4("view", &view[0])
+	r.shader.SetMatrix4("projection", &projection[0])
+	
+	r.sphere.Draw()
+}
+
+func (r *Renderer) DrawCylinderWithTransform(model bmath.Matrix4) {
+	r.shader.Use()
+	
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.shader.SetMatrix4("model", &model[0])
+	r.shader.SetMatrix4("view", &view[0])
+	r.shader.SetMatrix4("projection", &projection[0])
+	
+	r.cylinder.Draw()
+}
+
+func (r *Renderer) DrawPlaneWithTransform(model bmath.Matrix4) {
+	r.shader.Use()
+	
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.shader.SetMatrix4("model", &model[0])
+	r.shader.SetMatrix4("view", &view[0])
+	r.shader.SetMatrix4("projection", &projection[0])
+	
+	r.plane.Draw()
+}
+
+func (r *Renderer) DrawTriangleMeshWithTransform(model bmath.Matrix4) {
+	r.shader.Use()
+	
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.shader.SetMatrix4("model", &model[0])
+	r.shader.SetMatrix4("view", &view[0])
+	r.shader.SetMatrix4("projection", &projection[0])
+	
+	r.triangleMesh.Draw()
+}
+
+func (r *Renderer) DrawPyramidWithTransform(model bmath.Matrix4) {
+	r.shader.Use()
+	
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.shader.SetMatrix4("model", &model[0])
+	r.shader.SetMatrix4("view", &view[0])
+	r.shader.SetMatrix4("projection", &projection[0])
+	
+	r.pyramid.Draw()
+}
+
 func (r *Renderer) GetCamera() *camera.Camera3D {
 	return r.camera
 }
@@ -224,6 +314,36 @@ func (r *Renderer) DrawTriangleViewOnly() {
 	r.triangle.Draw()
 }
 
+func (r *Renderer) DrawGrid(lines []bmath.Vector3, color [4]float32) {
+	if len(lines) < 2 {
+		return
+	}
+	
+	// Convert lines to vertex data with color
+	vertices := make([]float32, 0, len(lines)*6)
+	for _, line := range lines {
+		vertices = append(vertices, line.X, line.Y, line.Z, color[0], color[1], color[2])
+	}
+	
+	// Create temporary mesh for grid lines
+	if r.gridMesh != nil {
+		r.gridMesh.Delete()
+	}
+	r.gridMesh = opengl.NewMeshLines(vertices)
+	
+	r.lineShader.Use()
+	
+	model := bmath.NewMatrix4Identity()
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.lineShader.SetMatrix4("model", &model[0])
+	r.lineShader.SetMatrix4("view", &view[0])
+	r.lineShader.SetMatrix4("projection", &projection[0])
+	
+	r.gridMesh.DrawLines()
+}
+
 func (r *Renderer) EndFrame() {
 	r.window.SwapBuffers()
 	r.window.PollEvents()
@@ -236,6 +356,15 @@ func (r *Renderer) ShouldClose() bool {
 func (r *Renderer) Cleanup() {
 	r.triangle.Delete()
 	r.cube.Delete()
+	r.sphere.Delete()
+	r.cylinder.Delete()
+	r.plane.Delete()
+	r.triangleMesh.Delete()
+	r.pyramid.Delete()
 	r.shader.Delete()
+	r.lineShader.Delete()
+	if r.gridMesh != nil {
+		r.gridMesh.Delete()
+	}
 	r.window.Destroy()
 }

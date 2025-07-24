@@ -76,6 +76,14 @@ func (c *Camera3D) SetTarget(target bmath.Vector3) {
 	c.dirty = true
 }
 
+func (c *Camera3D) GetPosition() bmath.Vector3 {
+	return c.position
+}
+
+func (c *Camera3D) GetTarget() bmath.Vector3 {
+	return c.target
+}
+
 func (c *Camera3D) SetAspect(aspect float32) {
 	c.aspect = aspect
 	c.dirty = true

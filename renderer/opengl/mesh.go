@@ -94,3 +94,38 @@ func (m *Mesh) Delete() {
 		gl.DeleteBuffers(1, &m.ebo)
 	}
 }
+
+func NewMeshLines(vertices []float32) *Mesh {
+	mesh := &Mesh{
+		vertexCount: int32(len(vertices) / 6), // 3 for position, 3 for color
+		indexed:     false,
+	}
+
+	// Generate and bind VAO
+	gl.GenVertexArrays(1, &mesh.vao)
+	gl.BindVertexArray(mesh.vao)
+
+	// Generate and bind VBO
+	gl.GenBuffers(1, &mesh.vbo)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
+
+	// Position attribute
+	gl.VertexAttribPointer(0, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(0))
+	gl.EnableVertexAttribArray(0)
+
+	// Color attribute
+	gl.VertexAttribPointer(1, 3, gl.FLOAT, false, 6*4, gl.PtrOffset(3*4))
+	gl.EnableVertexAttribArray(1)
+
+	// Unbind
+	gl.BindVertexArray(0)
+
+	return mesh
+}
+
+func (m *Mesh) DrawLines() {
+	gl.BindVertexArray(m.vao)
+	gl.DrawArrays(gl.LINES, 0, m.vertexCount)
+	gl.BindVertexArray(0)
+}
