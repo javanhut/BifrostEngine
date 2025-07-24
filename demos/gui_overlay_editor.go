@@ -40,6 +40,7 @@ func main() {
 
 	// Create editor
 	editor := ui.NewEditor()
+	editor.SetRenderer(renderer) // Set renderer for asset management
 	guiEditor := &GUIOverlayEditor{
 		renderer:       renderer,
 		editor:         editor,
@@ -99,7 +100,7 @@ func main() {
 		}
 		
 		// Render 3D scene
-		renderScene(renderer, guiEditor.editor)
+		renderScene(renderer, guiEditor.editor, guiEditor.guiSystem)
 		
 		// Render GUI overlay (includes stats table)
 		guiEditor.guiSystem.Render()
@@ -392,9 +393,11 @@ func selectObjectAtMousePos(editor *GUIOverlayEditor, mouseX, mouseY float64) in
 	return -1 // No object selected
 }
 
-func renderScene(renderer *core.Renderer, editor *ui.Editor) {
+func renderScene(renderer *core.Renderer, editor *ui.Editor, guiSystem *ui.GUISystem) {
 	objects := editor.GetSceneObjects()
 	selectedIndex := editor.GetSelectedObject()
+	useTextures := guiSystem.GetUseTextures()
+	useLighting := guiSystem.GetUseLighting()
 	
 	for i, obj := range objects {
 		if !obj.Visible {
@@ -421,22 +424,50 @@ func renderScene(renderer *core.Renderer, editor *ui.Editor) {
 			model = model.Multiply(highlightScale)
 		}
 		
-		// Render based on object type
+		// Render based on object type and lighting preference
 		switch obj.Type {
 		case "cube":
-			renderer.DrawCubeWithTransform(model)
+			if useLighting {
+				renderer.DrawCubeWithLighting(model, useTextures)
+			} else {
+				renderer.DrawCubeWithTextureToggle(model, useTextures)
+			}
 		case "triangle":
-			renderer.DrawTriangleMeshWithTransform(model)
+			if useLighting {
+				renderer.DrawTriangleWithLighting(model, useTextures)
+			} else {
+				renderer.DrawTriangleMeshWithTextureToggle(model, useTextures)
+			}
 		case "sphere":
-			renderer.DrawSphereWithTransform(model)
+			if useLighting {
+				renderer.DrawSphereWithLighting(model, useTextures)
+			} else {
+				renderer.DrawSphereWithTextureToggle(model, useTextures)
+			}
 		case "cylinder":
-			renderer.DrawCylinderWithTransform(model)
+			if useLighting {
+				renderer.DrawCylinderWithLighting(model, useTextures)
+			} else {
+				renderer.DrawCylinderWithTextureToggle(model, useTextures)
+			}
 		case "plane":
-			renderer.DrawPlaneWithTransform(model)
+			if useLighting {
+				renderer.DrawPlaneWithLighting(model, useTextures)
+			} else {
+				renderer.DrawPlaneWithTextureToggle(model, useTextures)
+			}
 		case "pyramid":
-			renderer.DrawPyramidWithTransform(model)
+			if useLighting {
+				renderer.DrawPyramidWithLighting(model, useTextures)
+			} else {
+				renderer.DrawPyramidWithTextureToggle(model, useTextures)
+			}
 		default:
-			renderer.DrawCubeWithTransform(model)
+			if useLighting {
+				renderer.DrawCubeWithLighting(model, useTextures)
+			} else {
+				renderer.DrawCubeWithTextureToggle(model, useTextures)
+			}
 		}
 	}
 }

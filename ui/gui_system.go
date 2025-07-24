@@ -16,6 +16,8 @@ type GUISystem struct {
 	showProjectMenu bool
 	showViewMenu bool
 	showHelpMenu bool
+	showAssetsMenu bool
+	showAssetBrowser bool
 	mouseX      float64
 	mouseY      float64
 	leftClickPressed bool
@@ -23,6 +25,8 @@ type GUISystem struct {
 	editor      *Editor
 	showStatsTable bool
 	currentMode string
+	useTextures bool
+	useLighting bool
 }
 
 type Button struct {
@@ -117,6 +121,14 @@ func (gui *GUISystem) SetCurrentMode(mode string) {
 	gui.currentMode = mode
 }
 
+func (gui *GUISystem) GetUseTextures() bool {
+	return gui.useTextures
+}
+
+func (gui *GUISystem) GetUseLighting() bool {
+	return gui.useLighting
+}
+
 func (gui *GUISystem) Render() {
 	// Enable blending for transparency
 	gl.Enable(gl.BLEND)
@@ -148,8 +160,16 @@ func (gui *GUISystem) Render() {
 	if gui.showViewMenu {
 		gui.renderViewMenu()
 	}
+	if gui.showAssetsMenu {
+		gui.renderAssetsMenu()
+	}
 	if gui.showHelpMenu {
 		gui.renderHelpMenu()
+	}
+	
+	// Render asset browser window if open
+	if gui.showAssetBrowser {
+		gui.renderAssetBrowser()
 	}
 	
 	// Render stats table on top of everything
@@ -178,7 +198,8 @@ func (gui *GUISystem) renderMenuBar() {
 		{10, 65, "File", func() { gui.showProjectMenu = !gui.showProjectMenu; gui.closeOtherMenus("project") }},
 		{85, 100, "Objects", func() { gui.showObjectMenu = !gui.showObjectMenu; gui.closeOtherMenus("objects") }},
 		{195, 65, "View", func() { gui.showViewMenu = !gui.showViewMenu; gui.closeOtherMenus("view") }},
-		{270, 65, "Help", func() { gui.showHelpMenu = !gui.showHelpMenu; gui.closeOtherMenus("help") }},
+		{270, 75, "Assets", func() { gui.showAssetsMenu = !gui.showAssetsMenu; gui.closeOtherMenus("assets") }},
+		{355, 65, "Help", func() { gui.showHelpMenu = !gui.showHelpMenu; gui.closeOtherMenus("help") }},
 	}
 
 	for _, btn := range buttons {
@@ -387,22 +408,40 @@ func (gui *GUISystem) closeOtherMenus(except string) {
 	if except != "view" {
 		gui.showViewMenu = false
 	}
+	if except != "assets" {
+		gui.showAssetsMenu = false
+	}
 	if except != "help" {
 		gui.showHelpMenu = false
 	}
 }
 
 func (gui *GUISystem) renderViewMenu() {
-	// Dropdown background
-	x, y := float32(195), float32(gui.windowHeight-30-125)
-	width, height := float32(120), float32(125)
+	// Dropdown background - position it to drop down from menu bar
+	// Menu bar is at windowHeight-30 (top), dropdown should go downward from there
+	x := float32(195)
+	menuBarY := float32(gui.windowHeight - 30)
+	
+	// Calculate dropdown size
+	items := []string{"Toggle Grid", "Toggle Textures", "Toggle Lighting", "Wireframe", "Fullscreen", "Reset Camera", "Stats"}
+	itemHeight := float32(25)
+	width := float32(140)
+	height := float32(len(items)) * itemHeight
+	
+	// Position dropdown just below menu bar, extending downward
+	y := menuBarY - height
+	
+	// Ensure it doesn't go too low and conflict with stats table (keep in upper 60% of screen)
+	minY := float32(gui.windowHeight) * 0.4
+	if y < minY {
+		y = minY
+		height = menuBarY - y // Adjust height to fit available space
+	}
 	
 	gui.drawRect(x, y, width, height, [3]float32{0.15, 0.15, 0.15})
 	gui.drawRectOutline(x, y, width, height, [3]float32{0.5, 0.5, 0.5})
 
-	// Menu items
-	items := []string{"Toggle Grid", "Wireframe", "Fullscreen", "Reset Camera", "Stats"}
-	itemHeight := float32(25)
+	// Menu items (using the same items array calculated above)
 
 	for i, item := range items {
 		itemY := y + float32(i)*itemHeight
@@ -419,6 +458,12 @@ func (gui *GUISystem) renderViewMenu() {
 					grid := gui.editor.GetGrid()
 					grid.Visible = !grid.Visible
 					fmt.Printf("Grid: %v\n", grid.Visible)
+				case "Toggle Textures":
+					gui.useTextures = !gui.useTextures
+					fmt.Printf("Textures: %v\n", gui.useTextures)
+				case "Toggle Lighting":
+					gui.useLighting = !gui.useLighting
+					fmt.Printf("Lighting: %v\n", gui.useLighting)
 				case "Wireframe":
 					fmt.Println("Wireframe mode not yet implemented")
 				case "Fullscreen":
@@ -572,4 +617,167 @@ func (gui *GUISystem) renderModeIndicator() {
 	
 	// Render mode text centered
 	gui.renderText(x+8, y+6, "Mode: " + modeText, 1.1, textColor)
+}
+
+func (gui *GUISystem) renderAssetsMenu() {
+	// Dropdown background - position below Assets menu button
+	x, y := float32(270), float32(gui.windowHeight-30-150)
+	width, height := float32(160), float32(150)
+	
+	gui.drawRect(x, y, width, height, [3]float32{0.15, 0.15, 0.15})
+	gui.drawRectOutline(x, y, width, height, [3]float32{0.5, 0.5, 0.5})
+
+	// Menu items
+	items := []string{"Browse Assets", "Load Mesh (.obj)", "Asset Statistics", "Clear Cache", "Reload Assets", "Import Settings"}
+	itemHeight := float32(25)
+
+	for i, item := range items {
+		itemY := y + float32(i)*itemHeight
+		
+		// Check if this item is being hovered/clicked
+		if gui.mouseX >= float64(x) && gui.mouseX <= float64(x+width) &&
+		   gui.mouseY >= float64(gui.windowHeight)-float64(itemY+itemHeight) &&
+		   gui.mouseY <= float64(gui.windowHeight)-float64(itemY) {
+			
+			// Highlight hovered item
+			gui.drawRect(x, itemY, width, itemHeight, [3]float32{0.3, 0.3, 0.4})
+			
+			if gui.leftClickPressed {
+				// Handle menu item click
+				switch item {
+				case "Browse Assets":
+					gui.showAssetBrowser = !gui.showAssetBrowser
+					fmt.Printf("Asset browser: %v\n", gui.showAssetBrowser)
+				case "Load Mesh (.obj)":
+					fmt.Println("Load Mesh dialog not yet implemented - use demos/obj_loading_demo for now")
+				case "Asset Statistics":
+					if gui.editor != nil {
+						meshCount, vertices, indices, err := gui.editor.GetAssetStats()
+						if err != nil {
+							fmt.Printf("Error getting asset stats: %v\n", err)
+						} else {
+							fmt.Printf("=== Asset Statistics ===\n")
+							fmt.Printf("Loaded Meshes: %d\n", meshCount)
+							fmt.Printf("Total Vertices: %d\n", vertices)
+							fmt.Printf("Total Indices: %d\n", indices)
+							fmt.Printf("=======================\n")
+						}
+					}
+				case "Clear Cache":
+					if gui.editor != nil {
+						err := gui.editor.ClearAssetCache()
+						if err != nil {
+							fmt.Printf("Error clearing asset cache: %v\n", err)
+						} else {
+							fmt.Println("✅ Asset cache cleared successfully!")
+						}
+					}
+				case "Reload Assets":
+					fmt.Println("Asset reload not yet implemented")
+				case "Import Settings":
+					fmt.Println("Import settings dialog not yet implemented")
+				}
+				gui.showAssetsMenu = false
+			}
+		}
+
+		// Render actual text
+		gui.renderText(x+8, itemY+4, item, 1.2, [3]float32{0.9, 0.9, 0.9})
+	}
+}
+
+func (gui *GUISystem) renderAssetBrowser() {
+	// Asset browser window - larger window for browsing files
+	windowWidth := float32(400)
+	windowHeight := float32(500)
+	x := float32(gui.windowWidth)/2 - windowWidth/2  // Center horizontally
+	y := float32(gui.windowHeight)/2 - windowHeight/2 // Center vertically
+	
+	// Window background
+	gui.drawRect(x, y, windowWidth, windowHeight, [3]float32{0.1, 0.1, 0.1})
+	gui.drawRectOutline(x, y, windowWidth, windowHeight, [3]float32{0.6, 0.6, 0.6})
+	
+	// Title bar
+	titleHeight := float32(30)
+	gui.drawRect(x, y+windowHeight-titleHeight, windowWidth, titleHeight, [3]float32{0.2, 0.2, 0.25})
+	gui.renderText(x+10, y+windowHeight-22, "Asset Browser", 1.4, [3]float32{1.0, 1.0, 1.0})
+	
+	// Close button (X)
+	closeButtonSize := float32(20)
+	closeButtonX := x + windowWidth - closeButtonSize - 5
+	closeButtonY := y + windowHeight - titleHeight + 5
+	
+	// Check if close button is clicked
+	if gui.mouseX >= float64(closeButtonX) && gui.mouseX <= float64(closeButtonX+closeButtonSize) &&
+	   gui.mouseY >= float64(gui.windowHeight)-float64(closeButtonY+closeButtonSize) &&
+	   gui.mouseY <= float64(gui.windowHeight)-float64(closeButtonY) {
+		
+		gui.drawRect(closeButtonX, closeButtonY, closeButtonSize, closeButtonSize, [3]float32{0.6, 0.2, 0.2})
+		
+		if gui.leftClickPressed {
+			gui.showAssetBrowser = false
+		}
+	} else {
+		gui.drawRect(closeButtonX, closeButtonY, closeButtonSize, closeButtonSize, [3]float32{0.4, 0.4, 0.4})
+	}
+	
+	gui.renderText(closeButtonX+6, closeButtonY+4, "X", 1.2, [3]float32{1.0, 1.0, 1.0})
+	
+	// Content area
+	contentY := y + 20
+	contentHeight := windowHeight - titleHeight - 40
+	
+	// Display loaded assets
+	gui.renderText(x+10, contentY+contentHeight-30, "Loaded Assets:", 1.3, [3]float32{0.9, 0.9, 0.9})
+	
+	if gui.editor != nil {
+		loadedMeshes, err := gui.editor.GetLoadedMeshNames()
+		if err != nil {
+			loadedMeshes = []string{} // Empty list if error
+		}
+		
+		if len(loadedMeshes) == 0 {
+			gui.renderText(x+20, contentY+contentHeight-60, "No assets loaded", 1.1, [3]float32{0.7, 0.7, 0.7})
+			gui.renderText(x+20, contentY+contentHeight-85, "Use Assets > Load Mesh or run", 1.1, [3]float32{0.7, 0.7, 0.7})
+			gui.renderText(x+20, contentY+contentHeight-110, "demos/obj_loading_demo", 1.1, [3]float32{0.7, 0.7, 0.7})
+		} else {
+			for i, meshName := range loadedMeshes {
+				if i >= 15 { // Limit display to prevent overflow
+					gui.renderText(x+20, contentY+contentHeight-60-float32(i*25), "... and more", 1.1, [3]float32{0.7, 0.7, 0.7})
+					break
+				}
+				
+				itemY := contentY + contentHeight - 60 - float32(i*25)
+				
+				// Mesh item background
+				itemWidth := windowWidth - 40
+				itemHeight := float32(20)
+				
+				// Check if item is hovered
+				if gui.mouseX >= float64(x+20) && gui.mouseX <= float64(x+20+itemWidth) &&
+				   gui.mouseY >= float64(gui.windowHeight)-float64(itemY+itemHeight) &&
+				   gui.mouseY <= float64(gui.windowHeight)-float64(itemY) {
+					
+					gui.drawRect(x+20, itemY-2, itemWidth, itemHeight, [3]float32{0.25, 0.25, 0.3})
+					
+					if gui.leftClickPressed {
+						fmt.Printf("Selected mesh: %s\n", meshName)
+						// TODO: Add mesh to scene or show mesh details
+					}
+				}
+				
+				// Render mesh name with bullet point
+				gui.renderText(x+25, itemY+2, "• "+meshName, 1.1, [3]float32{0.8, 0.9, 0.8})
+			}
+		}
+		
+		// Asset statistics at bottom
+		meshCount, vertices, indices, err := gui.editor.GetAssetStats()
+		if err == nil {
+			gui.renderText(x+10, contentY+20, fmt.Sprintf("Statistics: %d meshes, %d vertices, %d indices", 
+				meshCount, vertices, indices), 1.0, [3]float32{0.6, 0.6, 0.6})
+		} else {
+			gui.renderText(x+10, contentY+20, "Statistics: Unable to load", 1.0, [3]float32{0.6, 0.6, 0.6})
+		}
+	}
 }

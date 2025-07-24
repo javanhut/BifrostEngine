@@ -75,11 +75,11 @@ BifrostEngine/
 ## Commands
 
 ### Main Commands
-- `bifrost editor` - Launch the full UI editor
-- `bifrost demos` - List available demos
-- `bifrost demo <name>` - Run a specific demo
-- `bifrost --version` - Show version information
-- `bifrost --help` - Display help
+- `bifrost_engine editor` - Launch the full UI editor
+- `bifrost_engine demos` - List available demos
+- `bifrost_engine demo <name>` - Run a specific demo
+- `bifrost_engine --version` - Show version information
+- `bifrost_engine --help` - Display help
 
 ### GUI Overlay Editor Controls
 
@@ -137,8 +137,15 @@ cd BifrostEngine
 # Install dependencies
 go mod download
 
-# Run the engine
+# Run the engine directly
 go run main.go editor
+
+# Or build the binary
+go build -o bifrost_engine main.go
+
+# Then use the binary
+./bifrost_engine editor
+./bifrost_engine demos
 ```
 
 ## Documentation

@@ -36,7 +36,7 @@ func (pm *ProjectManager) CreateProject(name string) (*Project, error) {
 		Path:         fmt.Sprintf("./projects/%s", name),
 		CreatedAt:    time.Now(),
 		LastModified: time.Now(),
-		SceneFile:    fmt.Sprintf("%s.bifrost", name),
+		SceneFile:    fmt.Sprintf("%s.bifrost_engine", name),
 	}
 	
 	pm.projects = append(pm.projects, project)

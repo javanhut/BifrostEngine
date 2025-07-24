@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"reflect"
 
 	"github.com/inkyblackness/imgui-go/v4"
 	bmath "github.com/javanhut/BifrostEngine/m/v2/math"
@@ -28,6 +29,7 @@ type Editor struct {
 	showToolbar     bool
 	showProjectPanel bool
 	cameraPosition  bmath.Vector3
+	renderer        interface{} // Interface to avoid circular dependency
 	fps            float32
 	grid           *Grid
 	projectManager *ProjectManager
@@ -236,4 +238,92 @@ func (e *Editor) UpdateObject(index int, obj SceneObject) {
 	if index >= 0 && index < len(e.sceneObjects) {
 		e.sceneObjects[index] = obj
 	}
+}
+
+// SetRenderer sets the renderer for the editor (used for asset management)
+func (e *Editor) SetRenderer(renderer interface{}) {
+	e.renderer = renderer
+}
+
+// GetRenderer returns the renderer interface
+func (e *Editor) GetRenderer() interface{} {
+	return e.renderer
+}
+
+// GetAssetStats returns asset statistics safely
+func (e *Editor) GetAssetStats() (int, int, int, error) {
+	if e.renderer == nil {
+		return 0, 0, 0, fmt.Errorf("no renderer available")
+	}
+	
+	// Try multiple interface signatures since we can't know the exact return type
+	var stats interface{}
+	
+	// Try the most general approach - use reflection to call the method
+	rendererValue := reflect.ValueOf(e.renderer)
+	getStatsMethod := rendererValue.MethodByName("GetAssetStats")
+	if getStatsMethod.IsValid() {
+		result := getStatsMethod.Call([]reflect.Value{})
+		if len(result) > 0 {
+			stats = result[0].Interface()
+		}
+	}
+	
+	if stats != nil {
+		// Use reflection to access fields
+		v := reflect.ValueOf(stats)
+		if v.Kind() == reflect.Struct {
+			loadedMeshes := v.FieldByName("LoadedMeshes")
+			totalVertices := v.FieldByName("TotalVertices")
+			totalIndices := v.FieldByName("TotalIndices")
+			
+			if loadedMeshes.IsValid() && totalVertices.IsValid() && totalIndices.IsValid() {
+				return int(loadedMeshes.Int()), int(totalVertices.Int()), int(totalIndices.Int()), nil
+			}
+		}
+	}
+	
+	return 0, 0, 0, fmt.Errorf("could not get asset stats")
+}
+
+// GetLoadedMeshNames returns list of loaded mesh names
+func (e *Editor) GetLoadedMeshNames() ([]string, error) {
+	if e.renderer == nil {
+		return nil, fmt.Errorf("no renderer available")
+	}
+	
+	if meshGetter, ok := e.renderer.(interface {
+		GetLoadedMeshes() []string
+	}); ok {
+		return meshGetter.GetLoadedMeshes(), nil
+	}
+	
+	return nil, fmt.Errorf("could not get loaded meshes")
+}
+
+// ClearAssetCache clears all loaded assets
+func (e *Editor) ClearAssetCache() error {
+	if e.renderer == nil {
+		return fmt.Errorf("no renderer available")
+	}
+	
+	// Use reflection to call GetAssetManager
+	rendererValue := reflect.ValueOf(e.renderer)
+	getAssetManagerMethod := rendererValue.MethodByName("GetAssetManager")
+	if getAssetManagerMethod.IsValid() {
+		result := getAssetManagerMethod.Call([]reflect.Value{})
+		if len(result) > 0 {
+			assetManager := result[0].Interface()
+			
+			// Use reflection to call UnloadAll on the asset manager
+			amValue := reflect.ValueOf(assetManager)
+			unloadAllMethod := amValue.MethodByName("UnloadAll")
+			if unloadAllMethod.IsValid() {
+				unloadAllMethod.Call([]reflect.Value{})
+				return nil
+			}
+		}
+	}
+	
+	return fmt.Errorf("could not clear asset cache")
 }

@@ -91,7 +91,7 @@ Bifrost Engine is a game development engine built from scratch using Go, support
   - **Grid System**: Toggleable grid overlay
   - **Object Management**: Selection, deletion, property display
   - **Axis Constraints**: X/Y/Z constrained movement
-- **Simple Editor** (`bifrost editor`):
+- **Simple Editor** (`bifrost_engine editor`):
   - Basic project management
   - Keyboard-only controls
   - Console-based feedback
@@ -99,11 +99,11 @@ Bifrost Engine is a game development engine built from scratch using Go, support
 ### CLI Interface
 - **Status**: ✅ Complete
 - **Commands**:
-  - `bifrost editor` - Launch UI editor
-  - `bifrost demos` - List available demos
-  - `bifrost demo <name>` - Run specific demo
-  - `bifrost --version` - Show version
-  - `bifrost --help` - Show help
+  - `bifrost_engine editor` - Launch UI editor
+  - `bifrost_engine demos` - List available demos
+  - `bifrost_engine demo <name>` - Run specific demo
+  - `bifrost_engine --version` - Show version
+  - `bifrost_engine --help` - Show help
 
 ### Demo Applications
 - **Status**: ✅ Complete

@@ -45,7 +45,7 @@ func main() {
 	case "demo":
 		if len(os.Args) < 3 {
 			fmt.Println("Please specify a demo name")
-			fmt.Println("Usage: bifrost demo <demo-name>")
+			fmt.Println("Usage: bifrost_engine demo <demo-name>")
 			fmt.Println("Available demos: basic_editor, ui_editor, shape_demo, cube_demo, camera_demo")
 			return
 		}
@@ -64,7 +64,7 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Println("Usage: bifrost <command> [args]")
+	fmt.Println("Usage: bifrost_engine <command> [args]")
 	fmt.Println()
 	fmt.Println("Commands:")
 	fmt.Println("  editor       Launch the Bifrost Engine UI editor")
@@ -76,9 +76,9 @@ func printUsage() {
 	fmt.Println("  --help       Show this help message")
 	fmt.Println()
 	fmt.Println("Examples:")
-	fmt.Println("  bifrost editor")
-	fmt.Println("  bifrost demo ui_editor")
-	fmt.Println("  bifrost demos")
+	fmt.Println("  bifrost_engine editor")
+	fmt.Println("  bifrost_engine demo ui_editor")
+	fmt.Println("  bifrost_engine demos")
 }
 
 func listDemos() {
@@ -92,10 +92,21 @@ func listDemos() {
 	fmt.Println("  camera_demo      - Camera orbiting demo")
 	fmt.Println("  main_demo        - Basic 3D cube display")
 	fmt.Println()
-	fmt.Println("To run a demo: bifrost demo <demo-name>")
-	fmt.Println("Example: bifrost demo overlay_editor")
+	fmt.Println("🌟 LIGHTING DEMOS:")
+	fmt.Println("  lighting_demo    - Basic lighting system demonstration")
+	fmt.Println("  day_night_cycle  - Sun moving across sky with day/night")
+	fmt.Println("  dramatic_lighting- Multiple colored lights with effects")
+	fmt.Println("  studio_lighting  - Professional 3-point lighting setup")
 	fmt.Println()
-	fmt.Println("Recommended: Start with 'bifrost editor' for the on-screen GUI!")
+	fmt.Println("🎯 ASSET LOADING DEMOS:")
+	fmt.Println("  obj_loading_demo - OBJ file loading and rendering demonstration")
+	fmt.Println("  asset_browser_test - GUI asset browser functionality test")
+	fmt.Println("  asset_buttons_test - Test asset browser button functionality")
+	fmt.Println()
+	fmt.Println("To run a demo: bifrost_engine demo <demo-name>")
+	fmt.Println("Example: bifrost_engine demo day_night_cycle")
+	fmt.Println()
+	fmt.Println("Recommended: Start with 'bifrost_engine editor' for the on-screen GUI!")
 }
 
 func runDemo(demoName string) {
@@ -119,9 +130,23 @@ func runDemo(demoName string) {
 		demoFile = "camera_demo.go"
 	case "main_demo":
 		demoFile = "main_demo.go"
+	case "lighting_demo":
+		demoFile = "lighting_demo.go"
+	case "day_night_cycle":
+		demoFile = "day_night_cycle.go"
+	case "dramatic_lighting":
+		demoFile = "dramatic_lighting.go"
+	case "studio_lighting":
+		demoFile = "studio_lighting.go"
+	case "obj_loading_demo":
+		demoFile = "obj_loading_demo.go"
+	case "asset_browser_test":
+		demoFile = "asset_browser_demo.go"
+	case "asset_buttons_test":
+		demoFile = "asset_buttons_demo.go"
 	default:
 		fmt.Printf("Unknown demo: %s\n", demoName)
-		fmt.Println("Run 'bifrost demos' to see available demos")
+		fmt.Println("Run 'bifrost_engine demos' to see available demos")
 		return
 	}
 	
