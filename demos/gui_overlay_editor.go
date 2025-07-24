@@ -151,12 +151,30 @@ func setupInput(window *window.Window, editor *GUIOverlayEditor) {
 						fmt.Printf("Selected object: %s\n", editor.editor.GetSceneObjects()[selectedObj].Name)
 					}
 				} else {
-					// Start object transformation
-					objects := editor.editor.GetSceneObjects()
-					selectedIndex := editor.editor.GetSelectedObject()
-					if selectedIndex < len(objects) {
-						editor.objectDragging = true
-						editor.dragStartPos = objects[selectedIndex].Position
+					// Check if gizmos are enabled and try to interact with gizmo first
+					if editor.guiSystem.GetShowGizmos() {
+						selectedAxis := editor.renderer.HandleGizmoMouseClick(mouseX, mouseY)
+						if selectedAxis != core.GizmoAxisNone {
+							// Start gizmo drag
+							editor.renderer.StartGizmoDrag(mouseX, mouseY, selectedAxis)
+							fmt.Printf("Started gizmo drag on axis: %d\n", selectedAxis)
+						} else {
+							// Start object transformation (fallback to old behavior)
+							objects := editor.editor.GetSceneObjects()
+							selectedIndex := editor.editor.GetSelectedObject()
+							if selectedIndex < len(objects) {
+								editor.objectDragging = true
+								editor.dragStartPos = objects[selectedIndex].Position
+							}
+						}
+					} else {
+						// Start object transformation (old behavior when gizmos disabled)
+						objects := editor.editor.GetSceneObjects()
+						selectedIndex := editor.editor.GetSelectedObject()
+						if selectedIndex < len(objects) {
+							editor.objectDragging = true
+							editor.dragStartPos = objects[selectedIndex].Position
+						}
 					}
 				}
 				
@@ -165,6 +183,11 @@ func setupInput(window *window.Window, editor *GUIOverlayEditor) {
 			} else if action == glfw.Release {
 				editor.mousePressed = false
 				editor.objectDragging = false
+				// End gizmo drag if active
+				if editor.renderer.IsGizmoDragging() {
+					editor.renderer.EndGizmoDrag()
+					fmt.Println("Ended gizmo drag")
+				}
 			}
 		}
 	})
@@ -174,7 +197,19 @@ func setupInput(window *window.Window, editor *GUIOverlayEditor) {
 			deltaX := float32(xpos - editor.lastMouseX)
 			deltaY := float32(ypos - editor.lastMouseY)
 			
-			if editor.objectDragging && editor.transformMode != "select" {
+			// Handle gizmo dragging first (takes priority)
+			if editor.renderer.IsGizmoDragging() {
+				objects := editor.editor.GetSceneObjects()
+				selectedIndex := editor.editor.GetSelectedObject()
+				if selectedIndex < len(objects) {
+					obj := &objects[selectedIndex]
+					// Update object position using gizmo drag
+					newPosition := editor.renderer.UpdateGizmoDrag(xpos, ypos, &obj.Position)
+					obj.Position = newPosition
+					// Update the object in the editor
+					editor.editor.UpdateObject(selectedIndex, *obj)
+				}
+			} else if editor.objectDragging && editor.transformMode != "select" {
 				// Transform the selected object
 				objects := editor.editor.GetSceneObjects()
 				selectedIndex := editor.editor.GetSelectedObject()
@@ -258,6 +293,11 @@ func setupInput(window *window.Window, editor *GUIOverlayEditor) {
 			
 			editor.lastMouseX = xpos
 			editor.lastMouseY = ypos
+		}
+		
+		// Update gizmo hover state even when not dragging
+		if editor.guiSystem.GetShowGizmos() && !editor.renderer.IsGizmoDragging() {
+			editor.renderer.HandleGizmoMouseMove(xpos, ypos)
 		}
 	})
 	

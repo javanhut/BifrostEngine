@@ -1114,6 +1114,36 @@ func (r *Renderer) GetGizmoHoveredAxis() GizmoAxis {
 	return r.gizmo.GetHoveredAxis()
 }
 
+// StartGizmoDrag initializes gizmo drag state
+func (r *Renderer) StartGizmoDrag(mouseX, mouseY float64, selectedAxis GizmoAxis) {
+	if r.gizmo != nil {
+		r.gizmo.StartDrag(mouseX, mouseY, selectedAxis)
+	}
+}
+
+// UpdateGizmoDrag handles ongoing gizmo drag operations
+func (r *Renderer) UpdateGizmoDrag(mouseX, mouseY float64, targetObject *bmath.Vector3) bmath.Vector3 {
+	if r.gizmo == nil {
+		return *targetObject
+	}
+	return r.gizmo.UpdateDrag(mouseX, mouseY, targetObject)
+}
+
+// EndGizmoDrag finalizes gizmo drag operation
+func (r *Renderer) EndGizmoDrag() {
+	if r.gizmo != nil {
+		r.gizmo.EndDrag()
+	}
+}
+
+// IsGizmoDragging returns whether gizmo is currently being dragged
+func (r *Renderer) IsGizmoDragging() bool {
+	if r.gizmo == nil {
+		return false
+	}
+	return r.gizmo.IsDragging()
+}
+
 // GetCubeLightingMeshDebugInfo returns debug information about the cube lighting mesh
 func (r *Renderer) GetCubeLightingMeshDebugInfo() (int32, uint32, bool) {
 	if r.cubeLighting == nil {

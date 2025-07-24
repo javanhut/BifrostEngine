@@ -33,6 +33,11 @@ type Gizmo struct {
 	scale          float32
 	visible        bool
 	
+	// Drag state for manipulation
+	isDragging     bool
+	dragStartPos   bmath.Vector3  // Initial gizmo position when drag started
+	dragStartMouse bmath.Vector2  // Initial mouse position when drag started
+	
 	// Line meshes for each axis
 	xAxisMesh      *opengl.Mesh
 	yAxisMesh      *opengl.Mesh
@@ -503,6 +508,67 @@ func (g *Gizmo) Cleanup() {
 	if g.yzPlaneMesh != nil {
 		g.yzPlaneMesh.Delete()
 	}
+}
+
+// StartDrag initializes drag state when user starts dragging gizmo
+func (g *Gizmo) StartDrag(mouseX, mouseY float64, selectedAxis GizmoAxis) {
+	g.isDragging = true
+	g.selectedAxis = selectedAxis
+	g.dragStartPos = g.position
+	g.dragStartMouse = bmath.NewVector2(float32(mouseX), float32(mouseY))
+}
+
+// UpdateDrag handles ongoing drag operations and calculates new position
+func (g *Gizmo) UpdateDrag(mouseX, mouseY float64, targetObject *bmath.Vector3) bmath.Vector3 {
+	if !g.isDragging {
+		return *targetObject
+	}
+	
+	// Calculate mouse delta
+	currentMouse := bmath.NewVector2(float32(mouseX), float32(mouseY))
+	mouseDelta := bmath.NewVector2(
+		currentMouse.X - g.dragStartMouse.X,
+		currentMouse.Y - g.dragStartMouse.Y,
+	)
+	
+	// Sensitivity for mouse movement to world units
+	sensitivity := float32(0.01)
+	
+	// Calculate movement based on selected axis
+	var movement bmath.Vector3
+	switch g.selectedAxis {
+	case GizmoAxisX:
+		// X-axis movement: horizontal mouse movement affects X
+		movement = bmath.NewVector3(mouseDelta.X * sensitivity, 0, 0)
+	case GizmoAxisY:
+		// Y-axis movement: vertical mouse movement affects Y (inverted)
+		movement = bmath.NewVector3(0, -mouseDelta.Y * sensitivity, 0)
+	case GizmoAxisZ:
+		// Z-axis movement: vertical mouse movement affects Z
+		movement = bmath.NewVector3(0, 0, -mouseDelta.Y * sensitivity)
+	default:
+		// No movement if no axis selected
+		movement = bmath.NewVector3(0, 0, 0)
+	}
+	
+	// Apply movement to original position
+	newPosition := g.dragStartPos.Add(movement)
+	
+	// Update gizmo position to follow object
+	g.position = newPosition
+	
+	return newPosition
+}
+
+// EndDrag finalizes drag operation
+func (g *Gizmo) EndDrag() {
+	g.isDragging = false
+	g.selectedAxis = GizmoAxisNone
+}
+
+// IsDragging returns whether gizmo is currently being dragged
+func (g *Gizmo) IsDragging() bool {
+	return g.isDragging
 }
 
 // CalculateGizmoRay calculates which axis (if any) the mouse ray intersects
