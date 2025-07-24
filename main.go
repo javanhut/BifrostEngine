@@ -21,7 +21,14 @@ func main() {
 	switch command {
 	case "editor":
 		fmt.Println("Starting Bifrost Engine Editor...")
-		cmd := exec.Command("go", "run", "demos/gui_overlay_editor.go")
+		args := []string{"run", "demos/gui_overlay_editor.go"}
+		
+		// Check for debug flag
+		if len(os.Args) >= 3 && os.Args[2] == "--debug" {
+			args = append(args, "--debug")
+		}
+		
+		cmd := exec.Command("go", args...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -67,16 +74,20 @@ func printUsage() {
 	fmt.Println("Usage: bifrost_engine <command> [args]")
 	fmt.Println()
 	fmt.Println("Commands:")
-	fmt.Println("  editor       Launch the Bifrost Engine UI editor")
-	fmt.Println("  build        Build the current project")
-	fmt.Println("  run          Run the current project")
-	fmt.Println("  demos        List available demos")
-	fmt.Println("  demo <name>  Run a specific demo")
-	fmt.Println("  --version    Show version information")
-	fmt.Println("  --help       Show this help message")
+	fmt.Println("  editor [--debug]  Launch the Bifrost Engine UI editor")
+	fmt.Println("  build             Build the current project")
+	fmt.Println("  run               Run the current project")
+	fmt.Println("  demos             List available demos")
+	fmt.Println("  demo <name>       Run a specific demo")
+	fmt.Println("  --version         Show version information")
+	fmt.Println("  --help            Show this help message")
+	fmt.Println()
+	fmt.Println("Flags:")
+	fmt.Println("  --debug           Enable detailed debug output for rendering")
 	fmt.Println()
 	fmt.Println("Examples:")
 	fmt.Println("  bifrost_engine editor")
+	fmt.Println("  bifrost_engine editor --debug")
 	fmt.Println("  bifrost_engine demo ui_editor")
 	fmt.Println("  bifrost_engine demos")
 }
@@ -102,6 +113,9 @@ func listDemos() {
 	fmt.Println("  obj_loading_demo - OBJ file loading and rendering demonstration")
 	fmt.Println("  asset_browser_test - GUI asset browser functionality test")
 	fmt.Println("  asset_buttons_test - Test asset browser button functionality")
+	fmt.Println()
+	fmt.Println("🎛️ GIZMO DEMOS:")
+	fmt.Println("  gizmo_demo - Transform gizmo system demonstration")
 	fmt.Println()
 	fmt.Println("To run a demo: bifrost_engine demo <demo-name>")
 	fmt.Println("Example: bifrost_engine demo day_night_cycle")
@@ -144,6 +158,8 @@ func runDemo(demoName string) {
 		demoFile = "asset_browser_demo.go"
 	case "asset_buttons_test":
 		demoFile = "asset_buttons_demo.go"
+	case "gizmo_demo":
+		demoFile = "gizmo_demo.go"
 	default:
 		fmt.Printf("Unknown demo: %s\n", demoName)
 		fmt.Println("Run 'bifrost_engine demos' to see available demos")

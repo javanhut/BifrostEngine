@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 
+	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/javanhut/BifrostEngine/m/v2/assets"
 	"github.com/javanhut/BifrostEngine/m/v2/camera"
 	bmath "github.com/javanhut/BifrostEngine/m/v2/math"
@@ -36,6 +37,7 @@ type Renderer struct {
 	textureManager *TextureManager
 	lightingSystem *LightingSystem
 	assetManager *assets.AssetManager
+	gizmo *Gizmo
 }
 
 func New(width, height int, title string) (*Renderer, error) {
@@ -70,7 +72,7 @@ func New(width, height int, title string) (*Renderer, error) {
 		return nil, fmt.Errorf("failed to create lighting shader: %w", err)
 	}
 	
-	// Create line shader for grid
+	// Create line shader for grid and gizmos - use existing shader for now
 	lineShader, err := opengl.NewShader(opengl.DefaultVertexShader, opengl.DefaultFragmentShader)
 	if err != nil {
 		win.Destroy()
@@ -123,6 +125,9 @@ func New(width, height int, title string) (*Renderer, error) {
 	
 	// Create asset manager
 	assetManager := assets.NewAssetManager()
+	
+	// Create gizmo
+	gizmo := NewGizmo(lineShader)
 
 	return &Renderer{
 		window:  win,
@@ -148,13 +153,31 @@ func New(width, height int, title string) (*Renderer, error) {
 		textureManager: texManager,
 		lightingSystem: lightingSystem,
 		assetManager: assetManager,
+		gizmo: gizmo,
 	}, nil
 }
 
 func (r *Renderer) BeginFrame() {
+	r.BeginFrameWithMode(false) // Default to fill mode
+}
+
+func (r *Renderer) BeginFrameWithMode(wireframe bool) {
 	width, height := r.window.GetSize()
 	r.context.SetViewport(0, 0, int32(width), int32(height))
 	r.context.Clear(0.1, 0.1, 0.1, 1.0)
+	
+	// Set proper OpenGL state for 3D rendering
+	gl.Enable(gl.DEPTH_TEST)
+	gl.DepthFunc(gl.LESS)
+	
+	// Set polygon mode based on wireframe setting
+	if wireframe {
+		gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+		gl.LineWidth(1.5) // Slightly thicker lines for wireframe
+	} else {
+		gl.PolygonMode(gl.FRONT_AND_BACK, gl.FILL)
+		gl.LineWidth(1.0)
+	}
 	
 	// Update camera aspect ratio if window resized
 	if width > 0 && height > 0 {
@@ -924,6 +947,9 @@ func (r *Renderer) Cleanup() {
 	if r.gridMesh != nil {
 		r.gridMesh.Delete()
 	}
+	if r.gizmo != nil {
+		r.gizmo.Cleanup()
+	}
 	r.window.Destroy()
 }
 
@@ -1008,4 +1034,90 @@ func (r *Renderer) GetLoadedMeshes() []string {
 // GetAssetStats returns statistics about loaded assets
 func (r *Renderer) GetAssetStats() assets.AssetStats {
 	return r.assetManager.GetStats()
+}
+
+// Gizmo-related methods
+func (r *Renderer) RenderGizmo(position bmath.Vector3) {
+	if r.gizmo == nil {
+		return
+	}
+	
+	r.gizmo.SetPosition(position)
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	r.gizmo.Render(view, projection)
+}
+
+func (r *Renderer) SetGizmoType(gizmoType GizmoType) {
+	if r.gizmo != nil {
+		r.gizmo.SetType(gizmoType)
+	}
+}
+
+func (r *Renderer) SetGizmoVisible(visible bool) {
+	if r.gizmo != nil {
+		r.gizmo.SetVisible(visible)
+	}
+}
+
+func (r *Renderer) SetGizmoScale(scale float32) {
+	if r.gizmo != nil {
+		r.gizmo.SetScale(scale)
+	}
+}
+
+func (r *Renderer) GetGizmo() *Gizmo {
+	return r.gizmo
+}
+
+// HandleGizmoMouseMove processes mouse movement for gizmo hover detection
+func (r *Renderer) HandleGizmoMouseMove(mouseX, mouseY float64) {
+	if r.gizmo == nil {
+		return
+	}
+	
+	width, height := r.window.GetSize()
+	camera := r.camera.GetPosition()
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	r.gizmo.HandleMouseMove(mouseX, mouseY, &camera, view, projection, width, height)
+}
+
+// HandleGizmoMouseClick processes mouse clicks for gizmo selection
+func (r *Renderer) HandleGizmoMouseClick(mouseX, mouseY float64) GizmoAxis {
+	if r.gizmo == nil {
+		return GizmoAxisNone
+	}
+	
+	width, height := r.window.GetSize()
+	camera := r.camera.GetPosition()
+	view := r.camera.GetViewMatrix()
+	projection := r.camera.GetProjectionMatrix()
+	
+	return r.gizmo.HandleMouseClick(mouseX, mouseY, &camera, view, projection, width, height)
+}
+
+// GetGizmoSelectedAxis returns the currently selected gizmo axis
+func (r *Renderer) GetGizmoSelectedAxis() GizmoAxis {
+	if r.gizmo == nil {
+		return GizmoAxisNone
+	}
+	return r.gizmo.GetSelectedAxis()
+}
+
+// GetGizmoHoveredAxis returns the currently hovered gizmo axis
+func (r *Renderer) GetGizmoHoveredAxis() GizmoAxis {
+	if r.gizmo == nil {
+		return GizmoAxisNone
+	}
+	return r.gizmo.GetHoveredAxis()
+}
+
+// GetCubeLightingMeshDebugInfo returns debug information about the cube lighting mesh
+func (r *Renderer) GetCubeLightingMeshDebugInfo() (int32, uint32, bool) {
+	if r.cubeLighting == nil {
+		return 0, 0, false
+	}
+	return r.cubeLighting.IndexCount, r.cubeLighting.DrawMode, r.cubeLighting.IndexCount > 0
 }

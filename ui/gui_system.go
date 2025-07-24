@@ -27,6 +27,8 @@ type GUISystem struct {
 	currentMode string
 	useTextures bool
 	useLighting bool
+	showGizmos  bool
+	wireframeMode bool
 }
 
 type Button struct {
@@ -48,6 +50,7 @@ func NewGUISystem(width, height int, editor *Editor) *GUISystem {
 		windowHeight: height,
 		showMainMenu: true,
 		textRenderer: NewTextRenderer(),
+		showGizmos:   true, // Default to showing gizmos
 		editor:      editor,
 		showStatsTable: true,
 	}
@@ -127,6 +130,14 @@ func (gui *GUISystem) GetUseTextures() bool {
 
 func (gui *GUISystem) GetUseLighting() bool {
 	return gui.useLighting
+}
+
+func (gui *GUISystem) GetShowGizmos() bool {
+	return gui.showGizmos
+}
+
+func (gui *GUISystem) GetWireframeMode() bool {
+	return gui.wireframeMode
 }
 
 func (gui *GUISystem) Render() {
@@ -325,7 +336,13 @@ func (gui *GUISystem) drawRect(x, y, width, height float32, color [3]float32) {
 
 	gl.BindVertexArray(gui.vao)
 	gl.BindBuffer(gl.ARRAY_BUFFER, gui.vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.DYNAMIC_DRAW)
+	
+	// Ensure we have a valid slice before using gl.Ptr
+	if len(vertices) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(&vertices[0]), gl.DYNAMIC_DRAW)
+	} else {
+		return
+	}
 
 	// Position attribute
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 5*4, gl.PtrOffset(0))
@@ -349,7 +366,13 @@ func (gui *GUISystem) drawRectOutline(x, y, width, height float32, color [3]floa
 
 	gl.BindVertexArray(gui.vao)
 	gl.BindBuffer(gl.ARRAY_BUFFER, gui.vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.DYNAMIC_DRAW)
+	
+	// Ensure we have a valid slice before using gl.Ptr
+	if len(vertices) > 0 {
+		gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(&vertices[0]), gl.DYNAMIC_DRAW)
+	} else {
+		return
+	}
 
 	gl.VertexAttribPointer(0, 2, gl.FLOAT, false, 5*4, gl.PtrOffset(0))
 	gl.EnableVertexAttribArray(0)
@@ -423,7 +446,7 @@ func (gui *GUISystem) renderViewMenu() {
 	menuBarY := float32(gui.windowHeight - 30)
 	
 	// Calculate dropdown size
-	items := []string{"Toggle Grid", "Toggle Textures", "Toggle Lighting", "Wireframe", "Fullscreen", "Reset Camera", "Stats"}
+	items := []string{"Toggle Grid", "Toggle Textures", "Toggle Lighting", "Toggle Gizmos", "Wireframe", "Fullscreen", "Reset Camera", "Stats"}
 	itemHeight := float32(25)
 	width := float32(140)
 	height := float32(len(items)) * itemHeight
@@ -464,8 +487,12 @@ func (gui *GUISystem) renderViewMenu() {
 				case "Toggle Lighting":
 					gui.useLighting = !gui.useLighting
 					fmt.Printf("Lighting: %v\n", gui.useLighting)
+				case "Toggle Gizmos":
+					gui.showGizmos = !gui.showGizmos
+					fmt.Printf("Gizmos: %v\n", gui.showGizmos)
 				case "Wireframe":
-					fmt.Println("Wireframe mode not yet implemented")
+					gui.wireframeMode = !gui.wireframeMode
+					fmt.Printf("Wireframe: %v\n", gui.wireframeMode)
 				case "Fullscreen":
 					fmt.Println("Fullscreen mode not yet implemented")
 				case "Reset Camera":

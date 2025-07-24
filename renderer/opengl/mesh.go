@@ -5,27 +5,29 @@ import (
 )
 
 type Mesh struct {
-	vao        uint32
-	vbo        uint32
-	ebo        uint32
+	VAO        uint32
+	VBO        uint32
+	EBO        uint32
 	vertexCount int32
-	indexCount  int32
+	IndexCount  int32
 	indexed     bool
+	DrawMode    uint32 // gl.TRIANGLES, gl.LINES, etc.
 }
 
 func NewMesh(vertices []float32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 6), // 3 for position, 3 for color
 		indexed:     false,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Position attribute
@@ -45,22 +47,23 @@ func NewMesh(vertices []float32) *Mesh {
 func NewIndexedMesh(vertices []float32, indices []uint32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 6),
-		indexCount:  int32(len(indices)),
+		IndexCount:  int32(len(indices)),
 		indexed:     true,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Generate and bind EBO
-	gl.GenBuffers(1, &mesh.ebo)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo)
+	gl.GenBuffers(1, &mesh.EBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.EBO)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
 	// Position attribute
@@ -78,20 +81,20 @@ func NewIndexedMesh(vertices []float32, indices []uint32) *Mesh {
 }
 
 func (m *Mesh) Draw() {
-	gl.BindVertexArray(m.vao)
+	gl.BindVertexArray(m.VAO)
 	if m.indexed {
-		gl.DrawElements(gl.TRIANGLES, m.indexCount, gl.UNSIGNED_INT, gl.PtrOffset(0))
+		gl.DrawElements(m.DrawMode, m.IndexCount, gl.UNSIGNED_INT, gl.PtrOffset(0))
 	} else {
-		gl.DrawArrays(gl.TRIANGLES, 0, m.vertexCount)
+		gl.DrawArrays(m.DrawMode, 0, m.vertexCount)
 	}
 	gl.BindVertexArray(0)
 }
 
 func (m *Mesh) Delete() {
-	gl.DeleteVertexArrays(1, &m.vao)
-	gl.DeleteBuffers(1, &m.vbo)
+	gl.DeleteVertexArrays(1, &m.VAO)
+	gl.DeleteBuffers(1, &m.VBO)
 	if m.indexed {
-		gl.DeleteBuffers(1, &m.ebo)
+		gl.DeleteBuffers(1, &m.EBO)
 	}
 }
 
@@ -99,15 +102,16 @@ func NewMeshLines(vertices []float32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 6), // 3 for position, 3 for color
 		indexed:     false,
+		DrawMode:    gl.LINES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Position attribute
@@ -125,7 +129,7 @@ func NewMeshLines(vertices []float32) *Mesh {
 }
 
 func (m *Mesh) DrawLines() {
-	gl.BindVertexArray(m.vao)
+	gl.BindVertexArray(m.VAO)
 	gl.DrawArrays(gl.LINES, 0, m.vertexCount)
 	gl.BindVertexArray(0)
 }
@@ -136,15 +140,16 @@ func NewMeshWithUV(vertices []float32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 8), // 3 pos + 3 color + 2 UV
 		indexed:     false,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Position attribute (location 0)
@@ -170,22 +175,23 @@ func NewMeshWithUV(vertices []float32) *Mesh {
 func NewIndexedMeshWithUV(vertices []float32, indices []uint32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 8), // 3 pos + 3 color + 2 UV
-		indexCount:  int32(len(indices)),
+		IndexCount:  int32(len(indices)),
 		indexed:     true,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Generate and bind EBO
-	gl.GenBuffers(1, &mesh.ebo)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo)
+	gl.GenBuffers(1, &mesh.EBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.EBO)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
 	// Position attribute (location 0)
@@ -211,15 +217,16 @@ func NewMeshWithLighting(vertices []float32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 11), // 3 pos + 3 color + 2 UV + 3 normal
 		indexed:     false,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Position attribute (location 0)
@@ -249,22 +256,23 @@ func NewMeshWithLighting(vertices []float32) *Mesh {
 func NewIndexedMeshWithLighting(vertices []float32, indices []uint32) *Mesh {
 	mesh := &Mesh{
 		vertexCount: int32(len(vertices) / 11), // 3 pos + 3 color + 2 UV + 3 normal
-		indexCount:  int32(len(indices)),
+		IndexCount:  int32(len(indices)),
 		indexed:     true,
+		DrawMode:    gl.TRIANGLES,
 	}
 
 	// Generate and bind VAO
-	gl.GenVertexArrays(1, &mesh.vao)
-	gl.BindVertexArray(mesh.vao)
+	gl.GenVertexArrays(1, &mesh.VAO)
+	gl.BindVertexArray(mesh.VAO)
 
 	// Generate and bind VBO
-	gl.GenBuffers(1, &mesh.vbo)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.vbo)
+	gl.GenBuffers(1, &mesh.VBO)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VBO)
 	gl.BufferData(gl.ARRAY_BUFFER, len(vertices)*4, gl.Ptr(vertices), gl.STATIC_DRAW)
 
 	// Generate and bind EBO
-	gl.GenBuffers(1, &mesh.ebo)
-	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.ebo)
+	gl.GenBuffers(1, &mesh.EBO)
+	gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, mesh.EBO)
 	gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, len(indices)*4, gl.Ptr(indices), gl.STATIC_DRAW)
 
 	// Position attribute (location 0)

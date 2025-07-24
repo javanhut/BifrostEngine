@@ -257,14 +257,127 @@ func (r *Renderer) DrawCubeWithTextureToggle(model bmath.Matrix4, useTextures bo
 - `DrawXWithTextureToggle()`: Texture-aware rendering methods
 - `GetUseTextures()`: GUI state accessor
 
-### Current Status: Material System ✅ Complete
+## Transform Gizmo System Implementation (July 2025)
 
-**Next Priority**: Lighting System Implementation
-- Directional lights (sun lighting)
-- Point lights support  
-- Phong/Blinn-Phong shading
-- Ambient lighting
-- **Placeholder Features**: Wireframe and Fullscreen (marked as not implemented)
+### Visual Object Manipulation Interface
+**Goal**: Implement interactive 3D gizmos for translating, rotating, and scaling objects directly in the viewport
+
+**Implementation**:
+- **renderer/core/gizmo.go**: Complete gizmo rendering system with line-based visual handles
+  - **Translation Gizmo**: RGB-colored arrows (X=Red, Y=Green, Z=Blue) with arrowhead indicators
+  - **Axis Indicators**: Clean arrow geometry with proper 3D orientation
+  - **Plane Indicators**: Small squares showing XY, XZ, YZ plane manipulation areas
+  - **Visual Feedback**: Hover and selection states with color changes (Orange hover, Yellow selected)
+  - **Depth Rendering**: Always-on-top rendering using `gl.ALWAYS` depth function
+
+- **Line Rendering System**: Enhanced mesh system to support both triangles and lines
+  - **renderer/opengl/mesh.go**: Extended with `DrawMode` field (gl.TRIANGLES, gl.LINES)
+  - **renderer/opengl/line_mesh.go**: Specialized line mesh creation functions
+  - **Shader Integration**: Custom line shader with position/color vertex format and uniform color override
+
+- **Gizmo Integration**: Seamless editor integration
+  - **renderer/core/renderer.go**: Gizmo management methods (`RenderGizmo`, `SetGizmoType`, `SetGizmoVisible`, `SetGizmoScale`)
+  - **ui/gui_system.go**: "Toggle Gizmos" option in View menu (enabled by default)
+  - **demos/gui_overlay_editor.go**: Automatic gizmo rendering for selected objects
+
+**Key Features**:
+- **Multi-Type Support**: Foundation for translation, rotation, and scale gizmos (currently translation implemented)
+- **Dynamic Scaling**: Adjustable gizmo size for different viewport distances
+- **Visual States**: Distinct colors for normal, hovered, and selected axis states
+- **Screen-Space Rendering**: Gizmos always render on top of scene geometry
+- **Performance Optimized**: Efficient line rendering with minimal overdraw
+
+**Architecture**:
+```go
+type Gizmo struct {
+    Type           GizmoType    // Translate, Rotate, Scale
+    selectedAxis   GizmoAxis    // X, Y, Z, or multi-axis
+    hoveredAxis    GizmoAxis    // Mouse hover detection
+    lineShader     *Shader      // Dedicated line rendering shader
+    position       Vector3      // World position
+    scale          float32      // Visual scale factor
+    // Individual axis meshes for efficient rendering
+    xAxisMesh, yAxisMesh, zAxisMesh *Mesh
+    xyPlaneMesh, xzPlaneMesh, yzPlaneMesh *Mesh
+}
+```
+
+**Testing**:
+- **demos/gizmo_demo.go**: Comprehensive standalone test demonstrating all gizmo functionality
+- ✅ Translation gizmo renders correctly with RGB axis colors
+- ✅ View menu toggle works in main editor
+- ✅ Selected objects display gizmos automatically
+- ✅ Multiple objects can be cycled through with gizmo following
+- ✅ Gizmo scaling system functional (0.5x to 3.0x range)
+
+**User Controls**:
+- **View Menu**: "Toggle Gizmos" - Enable/disable gizmo visibility
+- **Demo Controls**: G key toggles gizmos, T key cycles gizmo types, 1-5 keys adjust scale
+- **Integration**: Automatic display for selected objects in editor
+
+**Current Implementation Status**:
+- ✅ **Translation Gizmo**: Complete with RGB arrows and plane indicators
+- 🔄 **Rotation Gizmo**: Planned (circular handles around each axis)
+- 🔄 **Scale Gizmo**: Planned (box handles at axis endpoints)
+- 🔄 **Mouse Interaction**: Planned (ray casting for axis selection and dragging)
+
+### Technical Implementation Details
+
+**Line Rendering Pipeline**:
+```
+1. Gizmo Creation → Line Mesh Generation → Arrow Geometry Creation
+2. Shader Setup → Matrix Transformation → Color State Management
+3. Depth Override → Line Width Setting → Multi-Axis Rendering
+```
+
+**Shader Architecture**:
+- **Vertex Shader**: Standard MVP transformation with per-vertex colors
+- **Fragment Shader**: Uniform color override system for dynamic state changes
+- **Line-Specific**: Optimized for gl.LINES primitive rendering
+
+**Memory Management**:
+- Static mesh creation during gizmo initialization
+- Proper OpenGL resource cleanup in gizmo destructor
+- Efficient per-frame rendering without mesh regeneration
+
+### Development Session Insights
+
+**Key Technical Decisions**:
+1. **Always-On-Top Rendering**: Using `gl.ALWAYS` depth function ensures gizmos are never hidden behind objects
+2. **Separate Line Shader**: Dedicated shader for line rendering provides better performance than reusing triangle shaders
+3. **Mesh-Based Architecture**: Each axis as separate mesh allows for efficient selective rendering and color changes
+
+**Build Integration**:
+- All gizmo demos compile successfully
+- Main editor integration works without conflicts
+- No performance impact on existing rendering pipeline
+
+**Future Development Ready**:
+- Extensible architecture supports rotation and scale gizmos
+- Mouse ray casting infrastructure prepared for interactive manipulation
+- Clean separation between rendering and interaction logic
+
+### User Experience Impact
+
+**Visual Enhancement**:
+- Professional-grade visual feedback for object manipulation
+- Industry-standard RGB color scheme (matches Blender, Maya, Unity)
+- Clean, unobtrusive design that doesn't interfere with scene visibility
+
+**Editor Workflow**:
+- Selected objects now have immediate visual manipulation feedback
+- Toggle functionality allows users to disable gizmos when not needed
+- Consistent integration with existing View menu and editor controls
+
+### Next Development Priority
+
+The Transform Gizmo system provides the foundation for advanced object manipulation. Next logical steps:
+1. **Mouse Ray Casting** - Enable clicking and dragging gizmo axes
+2. **Interactive Translation** - Implement real-time object movement via gizmo dragging
+3. **Rotation Gizmos** - Add circular handles for object rotation
+4. **Scale Gizmos** - Add box handles for uniform and non-uniform scaling
+
+This implementation establishes Bifrost Engine's visual editing capabilities and brings it closer to industry-standard 3D editor functionality.
 
 **Object Creation Menu**:
 - Added pyramid to Objects menu

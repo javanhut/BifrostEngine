@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"os"
 	"strings"
 
+	"github.com/go-gl/gl/v4.1-core/gl"
 	bmath "github.com/javanhut/BifrostEngine/m/v2/math"
 	"github.com/javanhut/BifrostEngine/m/v2/renderer/core"
 	"github.com/javanhut/BifrostEngine/m/v2/renderer/window"
@@ -28,9 +30,25 @@ type GUIOverlayEditor struct {
 	objectDragging bool
 	dragStartPos   bmath.Vector3
 	axisConstraint string // "", "x", "y", "z" - constrains movement to specific axis
+	debugMode      bool   // enables detailed debug output
 }
 
 func main() {
+	// Check for debug flag
+	debugMode := false
+	for _, arg := range os.Args {
+		if arg == "--debug" {
+			debugMode = true
+			break
+		}
+	}
+	
+	if debugMode {
+		fmt.Println("=== DEBUG MODE ENABLED ===")
+		fmt.Println("Will show detailed mesh and rendering information")
+		fmt.Println()
+	}
+
 	// Initialize renderer
 	renderer, err := core.New(1280, 720, "Bifrost Engine - GUI Overlay Editor")
 	if err != nil {
@@ -48,6 +66,7 @@ func main() {
 		cameraDistance: 10.0,
 		cameraAngleX:   0.3,
 		cameraAngleY:   0.5,
+		debugMode:      debugMode,
 		transformMode:  "select",
 		objectDragging: false,
 	}
@@ -90,8 +109,9 @@ func main() {
 		guiEditor.guiSystem.Update(mouseX, mouseY, newLeftClick)
 		guiEditor.guiSystem.SetCurrentMode(guiEditor.transformMode)
 		
-		// Begin rendering
-		renderer.BeginFrame()
+		// Begin rendering with wireframe mode if enabled
+		wireframeMode := guiEditor.guiSystem.GetWireframeMode()
+		renderer.BeginFrameWithMode(wireframeMode)
 		
 		// Render grid if enabled
 		if grid := guiEditor.editor.GetGrid(); grid.Visible {
@@ -100,7 +120,7 @@ func main() {
 		}
 		
 		// Render 3D scene
-		renderScene(renderer, guiEditor.editor, guiEditor.guiSystem)
+		renderScene(renderer, guiEditor.editor, guiEditor.guiSystem, guiEditor.debugMode)
 		
 		// Render GUI overlay (includes stats table)
 		guiEditor.guiSystem.Render()
@@ -393,15 +413,40 @@ func selectObjectAtMousePos(editor *GUIOverlayEditor, mouseX, mouseY float64) in
 	return -1 // No object selected
 }
 
-func renderScene(renderer *core.Renderer, editor *ui.Editor, guiSystem *ui.GUISystem) {
+func renderScene(renderer *core.Renderer, editor *ui.Editor, guiSystem *ui.GUISystem, debugMode bool) {
 	objects := editor.GetSceneObjects()
 	selectedIndex := editor.GetSelectedObject()
 	useTextures := guiSystem.GetUseTextures()
 	useLighting := guiSystem.GetUseLighting()
 	
+	if debugMode {
+		// Check OpenGL state before rendering
+		var polygonMode [2]int32
+		gl.GetIntegerv(gl.POLYGON_MODE, &polygonMode[0])
+		fmt.Printf("=== FRAME DEBUG ===\n")
+		fmt.Printf("Polygon mode: %d (FILL=%d, LINE=%d)\n", polygonMode[0], gl.FILL, gl.LINE)
+		fmt.Printf("Objects to render: %d\n", len(objects))
+		fmt.Printf("Use textures: %t, Use lighting: %t\n", useTextures, useLighting)
+		
+		// Check if face culling is enabled
+		cullEnabled := gl.IsEnabled(gl.CULL_FACE)
+		fmt.Printf("Face culling enabled: %t\n", cullEnabled)
+		
+		// Check depth test
+		depthEnabled := gl.IsEnabled(gl.DEPTH_TEST)
+		fmt.Printf("Depth test enabled: %t\n", depthEnabled)
+	}
+	
 	for i, obj := range objects {
 		if !obj.Visible {
 			continue
+		}
+		
+		if debugMode {
+			fmt.Printf("--- Rendering object %d: %s (type: %s) ---\n", i, obj.Name, obj.Type)
+			fmt.Printf("Position: (%.2f, %.2f, %.2f)\n", obj.Position.X, obj.Position.Y, obj.Position.Z)
+			fmt.Printf("Scale: (%.2f, %.2f, %.2f)\n", obj.Scale.X, obj.Scale.Y, obj.Scale.Z)
+			fmt.Printf("Selected: %t\n", i == selectedIndex)
 		}
 		
 		// Create transform matrix (simplified for debugging)
@@ -427,10 +472,47 @@ func renderScene(renderer *core.Renderer, editor *ui.Editor, guiSystem *ui.GUISy
 		// Render based on object type and lighting preference
 		switch obj.Type {
 		case "cube":
+			if debugMode {
+				fmt.Printf("Drawing cube with lighting=%t, textures=%t\n", useLighting, useTextures)
+				
+				// Check cube mesh properties
+				indexCount, drawMode, isIndexed := renderer.GetCubeLightingMeshDebugInfo()
+				fmt.Printf("Cube mesh: IndexCount=%d, DrawMode=%d, Indexed=%t\n", indexCount, drawMode, isIndexed)
+				fmt.Printf("Expected: DrawMode should be %d (GL_TRIANGLES)\n", gl.TRIANGLES)
+				
+				// Check polygon mode right before cube draw
+				var polygonModeBeforeCube [2]int32
+				gl.GetIntegerv(gl.POLYGON_MODE, &polygonModeBeforeCube[0])
+				fmt.Printf("Polygon mode before cube draw: %d\n", polygonModeBeforeCube[0])
+			}
+			
 			if useLighting {
 				renderer.DrawCubeWithLighting(model, useTextures)
 			} else {
 				renderer.DrawCubeWithTextureToggle(model, useTextures)
+			}
+			
+			if debugMode {
+				// Check for OpenGL errors after cube draw
+				if err := gl.GetError(); err != gl.NO_ERROR {
+					fmt.Printf("OpenGL error after cube draw: %d", err)
+					switch err {
+					case gl.INVALID_ENUM:
+						fmt.Printf(" (GL_INVALID_ENUM - invalid enum parameter)")
+					case gl.INVALID_VALUE:
+						fmt.Printf(" (GL_INVALID_VALUE - invalid parameter value)")
+					case gl.INVALID_OPERATION:
+						fmt.Printf(" (GL_INVALID_OPERATION - invalid operation)")
+					case gl.OUT_OF_MEMORY:
+						fmt.Printf(" (GL_OUT_OF_MEMORY)")
+					}
+					fmt.Println()
+				}
+				
+				// Check polygon mode after cube draw
+				var polygonModeAfterCube [2]int32
+				gl.GetIntegerv(gl.POLYGON_MODE, &polygonModeAfterCube[0])
+				fmt.Printf("Polygon mode after cube draw: %d\n", polygonModeAfterCube[0])
 			}
 		case "triangle":
 			if useLighting {
@@ -469,6 +551,12 @@ func renderScene(renderer *core.Renderer, editor *ui.Editor, guiSystem *ui.GUISy
 				renderer.DrawCubeWithTextureToggle(model, useTextures)
 			}
 		}
+	}
+	
+	// Render gizmo for selected object if gizmos are enabled
+	if guiSystem.GetShowGizmos() && selectedIndex >= 0 && selectedIndex < len(objects) {
+		selectedObj := objects[selectedIndex]
+		renderer.RenderGizmo(selectedObj.Position)
 	}
 }
 
